@@ -216,9 +216,12 @@ abstract class HandyModel
     # ---------------------------------------------------------------------------------
     public static function lookupByID($id)
     {
+        $id = self::dbInstance()->real_escape_string($id);
+        $id = (int) $id;
+
         $modelClassName = get_called_class();
         $uidName = $modelClassName::$uidName;
-        $id = (int) $id;
+
         return $modelClassName::lookup("`{$uidName}` = '{$id}'");
     }
 
@@ -244,11 +247,11 @@ abstract class HandyModel
     # ---------------------------------------------------------------------------------
     public static function deleteByID($id)
     {
-        $modelClassName = get_called_class();
-
-        $uidName = $modelClassName::$uidName;
-
+        $id = self::dbInstance()->real_escape_string($id);
         $id = (int) $id;
+
+        $modelClassName = get_called_class();
+        $uidName = $modelClassName::$uidName;
 
         // Grab the database handler
         //$db =& self::returnDatabaseHandler();
@@ -267,7 +270,6 @@ abstract class HandyModel
     # ---------------------------------------------------------------------------------
     public static function lookupEach($whereQuery = false)
     {
-
         $modelClassName = get_called_class();
 
         // Create SQL statement
