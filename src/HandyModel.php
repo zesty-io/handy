@@ -209,14 +209,15 @@ abstract class HandyModel
             return false;
         }
     }
-    
+
     # ---------------------------------------------------------------------------------
     # ModelName::cleanValue()
     #   returns a "cleaned" string
     # ---------------------------------------------------------------------------------
     public static function cleanValue($value){
-        return self::dbInstance()->real_escape_string($value);   
+        return self::dbInstance()->real_escape_string($value);
     }
+
     
     # ---------------------------------------------------------------------------------
     # ModelName::lookupByID()
