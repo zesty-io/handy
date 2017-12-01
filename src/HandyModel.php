@@ -218,20 +218,36 @@ abstract class HandyModel
         return self::dbInstance()->real_escape_string($value);
     }
 
-    
+
     # ---------------------------------------------------------------------------------
     # ModelName::lookupByID()
     #   returns a "hydrated" model by ID (an alias of sorts)
     # ---------------------------------------------------------------------------------
     public static function lookupByID($id)
     {
-        $id = self::dbInstance()->real_escape_string($id);
         $id = (int) $id;
-
         $modelClassName = get_called_class();
         $uidName = $modelClassName::$uidName;
 
-        return $modelClassName::lookup("`{$uidName}` = '{$id}'");
+        $query = "SELECT * FROM `".$modelClassName::TABLE_NAME."` WHERE `{$uidName}` = ? LIMIT 1";
+
+        if ($stmt = self::dbInstance()->prepare($query)) {
+            $stmt->bind_param("s", $id);
+            $stmt->execute();
+
+            $result = $stmt->get_result();
+
+            $stmt->close();
+
+            if (isset($result->num_rows) && $result->num_rows > 0) {
+                $row = $result->fetch_object();
+                return new $modelClassName($row);
+            } else {
+                return false;
+            }
+        } else {
+            throw new Exception("Failed to prepare statement", 1);
+        }
     }
 
     # ---------------------------------------------------------------------------------
