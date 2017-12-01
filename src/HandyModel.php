@@ -369,53 +369,72 @@ abstract class HandyModel
         }
     }
 
-    # ---------------------------------------------------------------------------------
-    # ModelName::create()
-    #   creates new item in database and returns a single "hydrated" model
-    # ---------------------------------------------------------------------------------
-    public static function create($propertiesArray)
+    /**
+     * Determine value type for mysqli prepared statement
+     * Types: s = string, i = integer, d = double,  b = blob
+     *
+     * @method getBindType
+     * @see http://php.net/manual/en/mysqli-stmt.bind-param.php
+     * @param  Mixed      $value
+     * @return String
+     */
+    public static function getBindType($value) {
+      if(is_int($value)) return 'i';
+      if(is_double($value)) return 'd';
+      if(strlen($value) > 255) return 'b';
+      if(is_string($value)) return 's';
+    }
+
+    /**
+     * Create a new item in the database and return a single model instance
+     * @method create
+     * @param  [type] $props [description]
+     * @return [type]        [description]
+     */
+    public static function create($props)
     {
         $modelClassName = get_called_class();
+        $values = [];
+        $paramTypes = '';
 
-        // Grab the database handler
-        //$db =& self::returnDatabaseHandler();
-
-        // Create SQL statement
+        // Build dynamic query
         $sql = "INSERT INTO `".$modelClassName::TABLE_NAME."` SET ";
-
-        foreach ($propertiesArray as $col => $value) {
-            // If it isn't the ID field
+        foreach ($props as $col => $value) {
             if ($col != $modelClassName::$uidName) {
-            // add it to the query
-                $sql .= "`{$col}`='";
-                $sql .= self::dbInstance()->real_escape_string($value);
-                $sql .= "', ";
+                $sql .= "`{$col}`= ?, ";
+                $paramTypes .= self::getBindType($value);
+                $values[] = $value;
             }
         }
-
-        // Trim off the extra ", "
         $sql = rtrim($sql, ', ');
-        //echo $sql;
 
-        // Attempt to insert the item
-        if (!self::dbInstance()->query($sql)) {
-            $message = self::dbInstance()->error;
+        // Prepare statment
+        if ($stmt = self::dbInstance()->prepare($sql)) {
+            $stmt->bind_param($paramTypes, ...$values);
+            $stmt->execute();
 
-            if (!empty($message)) {
-                error_log('mysqli error: ' . $message);
+            $newItem = null;
+
+            if (isset($stmt->insert_id)) {
+                try {
+                    $newItem = self::lookupByID($stmt->insert_id);
+                    if (method_exists($newItem, '__postCreate')) {
+                        $newItem->__postCreate();
+                    }
+                } catch (Exception $e) {
+                    error_log($e);
+                }
+            }
+
+            $stmt->close();
+
+            if ($newItem != null) {
+                return $newItem;
             } else {
-                error_log('Unknown Handy/mysqli error occurred');
+                return false;
             }
-
-            return false;
         } else {
-            $newItem = self::lookupByID(self::dbInstance()->insert_id);
-
-            if (method_exists($newItem, '__postCreate')) {
-                $newItem->__postCreate();
-            }
-
-            return $newItem;
+            throw new Exception("Failed to prepare statement", 1);
         }
     }
 
