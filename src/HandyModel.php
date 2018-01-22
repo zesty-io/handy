@@ -378,11 +378,30 @@ abstract class HandyModel
      * @param  Mixed      $value
      * @return String
      */
-    public static function getBindType($value) {
-      if(is_int($value)) return 'i';
-      if(is_double($value)) return 'd';
-      if(strlen($value) > 255) return 'b';
-      if(is_string($value)) return 's';
+    public static function getBindType($value)
+    {
+        // 16777216 is 16mb to bytes. This is a
+        // very rudimentary guess at matching our
+        // incoming $value byte length against the default
+        // MySQL max_allowed_packet size. This is
+        // being done because the bind_param function
+        // requires setting a type of blob if we exceed
+        // maz_allowed_packet size. http://php.net/manual/en/mysqli-stmt.bind-param.php
+        // TODO handle multi-byte string lengths
+        $maxAllowedPacket = 16777216;
+
+        if (is_int($value)) {
+            return 'i';
+        }
+        if (is_double($value)) {
+            return 'd';
+        }
+        if (is_string($value) && strlen($value) <= $maxAllowedPacket) {
+            return 's';
+        }
+        if (strlen($value) > $maxAllowedPacket) {
+            return 'b';
+        }
     }
 
     /**
